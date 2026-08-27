@@ -1,0 +1,39 @@
+# 服务器部署配置模板（复制为 config.yaml 并填入真实值）
+# 与 backend/config/config.example.yaml 结构一致，但面向生产：
+#   - MySQL/Redis 指向服务器上已有的容器
+#   - dbname 为迁移后的新库 kuonji_new
+#   - auto_migrate 保持 false（首次由迁移工具建表，避免 GORM uniqueIndex bug）
+server:
+  port: 8080
+  mode: release
+
+database:
+  host: 8.218.174.69
+  port: 3306
+  user: root
+  password: "change_me"
+  dbname: kuonji_new
+  charset: utf8mb4
+  max_idle_conns: 10
+  max_open_conns: 100
+  auto_migrate: false
+
+redis:
+  host: 8.218.174.69
+  port: 6379
+  password: "change_me"
+  db: 0
+
+jwt:
+  secret: change_this_to_a_random_string
+  expire: 24h
+
+admin:
+  username: Kanon
+  password: "change_me"
+  email: kanon@kuonji.xyz
+
+log:
+  level: info
+  format: console
+  output: stdout

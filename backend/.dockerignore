@@ -1,0 +1,17 @@
+# Go 构建产物与本地文件
+bin/
+*.exe
+*.test
+coverage.out
+uploads/
+static/
+config/config.yaml
+*.log
+
+# Git 元数据
+.git/
+.gitignore
+
+# 编辑器
+.idea/
+.vscode/

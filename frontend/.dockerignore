@@ -1,0 +1,12 @@
+# 构建产物与依赖
+node_modules/
+dist/
+*.log
+
+# Git 元数据
+.git/
+.gitignore
+
+# 编辑器
+.idea/
+.vscode/

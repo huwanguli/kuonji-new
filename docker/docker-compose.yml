@@ -1,77 +1,50 @@
-version: "3.8"
+# Kuonji Blog 生产部署编排
+#
+# 设计：
+#   - 服务器上不存放源码：镜像在本机构建后 docker save/load 传输。
+#   - 复用服务器已有 mysql / redis 容器（不在此栈内启动），通过 config.yaml 连接。
+#   - config.yaml 与 uploads 目录外挂（bind mount），便于维护与迁移旧附件。
+#   - backend 不发布主机端口，仅内网；frontend(Caddy) 对外暴露 80/443。
+#   - 容器名使用 kuonji-new-* 前缀，避免与旧微服务容器重名，方便回滚。
+#
+# 服务器目录布局（/root/kuonji-deploy）：
+#   docker-compose.yml
+#   config/config.yaml        <- 本仓库 docker/config/config.yaml
+#   uploads/                  <- 旧博客附件复制至此
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: blog-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${DB_NAME:-blog}
-      MYSQL_USER: ${DB_USER:-blog}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-blogpassword}
-      TZ: Asia/Shanghai
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    container_name: blog-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
-    build:
-      context: ../backend
-      dockerfile: ../docker/backend/Dockerfile
-    container_name: blog-backend
+    image: kuonji-backend:latest
+    container_name: kuonji-new-backend
     restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: ${DB_USER:-blog}
-      DB_PASSWORD: ${DB_PASSWORD:-blogpassword}
-      DB_NAME: ${DB_NAME:-blog}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-me}
-    ports:
-      - "8080:8080"
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./config/config.yaml:/app/config/config.yaml:ro
+      - ./uploads:/app/uploads
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/api/v1/articles"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: ../docker/frontend/Dockerfile
-    container_name: blog-frontend
+    image: kuonji-frontend:latest
+    container_name: kuonji-new-frontend
     restart: unless-stopped
     depends_on:
-      - backend
-    environment:
-      NUXT_PUBLIC_API_BASE: http://backend:8080/api/v1
+      backend:
+        condition: service_healthy
     ports:
-      - "3000:3000"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
 
 volumes:
-  mysql_data:
-  redis_data:
+  caddy_data:
+  caddy_config:
