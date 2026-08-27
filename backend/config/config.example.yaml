@@ -6,7 +6,7 @@ database:
   host: localhost
   port: 3306
   user: root
-  password: www.184WYOP.com
+  password: your_password_here
   dbname: kuonji_new
   charset: utf8mb4
   max_idle_conns: 10
@@ -14,19 +14,19 @@ database:
   auto_migrate: false
 
 redis:
-  host: 8.218.174.69
+  host: 127.0.0.1
   port: 6379
-  password: 231310627
+  password: ""
   db: 0
 
 jwt:
-  secret: kuonji_new
+  secret: change_this_to_a_random_string
   expire: 24h
 
 admin:
-  username: ${ADMIN_USERNAME:admin}
-  password: ${ADMIN_PASSWORD:admin123}
-  email: ${ADMIN_EMAIL:admin@example.com}
+  username: admin
+  password: admin123
+  email: admin@example.com
 
 log:
   level: info
