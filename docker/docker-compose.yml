@@ -14,7 +14,7 @@
 
 services:
   backend:
-    image: kuonji-backend:latest
+    image: ghcr.io/huwanguli/kuonji-backend:latest
     container_name: kuonji-new-backend
     restart: unless-stopped
     environment:
@@ -32,7 +32,7 @@ services:
       start_period: 5s
 
   frontend:
-    image: kuonji-frontend:latest
+    image: ghcr.io/huwanguli/kuonji-frontend:latest
     container_name: kuonji-new-frontend
     restart: unless-stopped
     depends_on:

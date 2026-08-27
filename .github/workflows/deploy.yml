@@ -1,0 +1,105 @@
+# Kuonji Blog 持续部署流水线
+#
+# 流程：
+#   1. push 到 main（或手动触发）后，在 GitHub Runner 上构建 backend / frontend 镜像
+#   2. 镜像推送到 GHCR（ghcr.io/huwanguli/kuonji-*:latest）
+#   3. SSH 登录服务器，docker compose pull 后重启容器
+#
+# 服务器上无源码：只有镜像 + /root/kuonji-deploy/ 下的 compose/config/uploads。
+#
+# 需要的 GitHub Secrets（Settings -> Secrets and variables -> Actions）：
+#   SERVER_HOST       服务器公网 IP，如 8.218.174.69
+#   SERVER_USER       SSH 用户名，如 root
+#   SERVER_SSH_KEY    GitHub Actions 部署私钥（公钥已加到服务器 ~/.ssh/authorized_keys）
+#   GHCR_USERNAME     GitHub 用户名（如 huwanguli）
+#   GHCR_TOKEN        GitHub PAT（权限：write:packages, read:packages, repo；用于服务器拉取私有镜像）
+
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "docker/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BACKEND: ghcr.io/huwanguli/kuonji-backend
+  IMAGE_FRONTEND: ghcr.io/huwanguli/kuonji-frontend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── backend ──
+      - name: Build & push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: docker/backend/Dockerfile
+          build-args: |
+            BASE_GOLANG=golang:1.21-alpine
+            BASE_ALPINE=alpine:3.19
+          push: true
+          tags: ${{ env.IMAGE_BACKEND }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── frontend ──
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: docker/frontend/Dockerfile
+          build-args: |
+            BASE_NODE=node:20-alpine
+            BASE_CADDY=caddy:2-alpine
+          push: true
+          tags: ${{ env.IMAGE_FRONTEND }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    # 未配置服务器 secrets 时跳过部署（镜像仍会构建推送）
+    if: ${{ secrets.SERVER_HOST != '' && secrets.SERVER_SSH_KEY != '' }}
+    steps:
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+            # 登录 GHCR（拉取 kuonji-* 镜像；仓库公开时可选，但保留以防设为私有）
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin >/dev/null 2>&1 || echo "GHCR login skipped (public images)"
+            cd /root/kuonji-deploy
+            docker compose pull
+            docker compose up -d
+            docker image prune -f
