@@ -1,6 +1,9 @@
 # 构建阶段
-# 本地默认使用 DaoCloud 镜像源（阿里云加速器失效场景），CI 通过 build-args 覆盖为官方源
+# 本地默认使用 DaoCloud 镜像源（阿里云加速器失效场景），CI 通过 build-args 覆盖为官方源。
+# 注意：作为基础镜像的 ARG 必须在第一个 FROM 之前声明（Docker 限制）。
 ARG BASE_GOLANG=m.daocloud.io/docker.io/library/golang:1.21-alpine
+ARG BASE_ALPINE=m.daocloud.io/docker.io/library/alpine:3.19
+
 FROM ${BASE_GOLANG} AS builder
 
 WORKDIR /app
@@ -16,7 +19,6 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/server ./cmd/server
 
 # 运行阶段
-ARG BASE_ALPINE=m.daocloud.io/docker.io/library/alpine:3.19
 FROM ${BASE_ALPINE}
 
 WORKDIR /app

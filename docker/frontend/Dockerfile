@@ -1,6 +1,9 @@
 # 构建阶段
-# 本地默认使用 DaoCloud 镜像源（阿里云加速器失效场景），CI 通过 build-args 覆盖为官方源
+# 本地默认使用 DaoCloud 镜像源（阿里云加速器失效场景），CI 通过 build-args 覆盖为官方源。
+# 注意：作为基础镜像的 ARG 必须在第一个 FROM 之前声明（Docker 限制）。
 ARG BASE_NODE=m.daocloud.io/docker.io/library/node:20-alpine
+ARG BASE_CADDY=m.daocloud.io/docker.io/library/caddy:2-alpine
+
 FROM ${BASE_NODE} AS builder
 
 WORKDIR /app
@@ -14,7 +17,6 @@ COPY . .
 RUN npm run build
 
 # 运行阶段：Caddy 托管 SPA 并反代 API / 上传
-ARG BASE_CADDY=m.daocloud.io/docker.io/library/caddy:2-alpine
 FROM ${BASE_CADDY}
 
 WORKDIR /app
