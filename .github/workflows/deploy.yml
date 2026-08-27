@@ -32,8 +32,10 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_BACKEND: ghcr.io/huwanguli/kuonji-backend
-  IMAGE_FRONTEND: ghcr.io/huwanguli/kuonji-frontend
+  # 包名带仓库命名空间（kuonji-new），GITHUB_TOKEN 有完整写权限；
+  # 旧微服务占用的 ghcr.io/huwanguli/kuonji-* 包名不再使用（归属冲突）
+  IMAGE_BACKEND: ghcr.io/huwanguli/kuonji-new/kuonji-backend
+  IMAGE_FRONTEND: ghcr.io/huwanguli/kuonji-new/kuonji-frontend
 
 jobs:
   build-and-push:
