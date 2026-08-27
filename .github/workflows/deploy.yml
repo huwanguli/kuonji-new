@@ -86,8 +86,12 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    # secrets 不能直接在 if 条件中引用（GitHub 限制），先存入 job 级 env 再判断
+    env:
+      DEPLOY_HOST: ${{ secrets.SERVER_HOST }}
+      DEPLOY_KEY: ${{ secrets.SERVER_SSH_KEY }}
     # 未配置服务器 secrets 时跳过部署（镜像仍会构建推送）
-    if: ${{ secrets.SERVER_HOST != '' && secrets.SERVER_SSH_KEY != '' }}
+    if: ${{ env.DEPLOY_HOST != '' && env.DEPLOY_KEY != '' }}
     steps:
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1.2.0
